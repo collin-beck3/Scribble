@@ -1,9 +1,14 @@
 package com.collin.notes;
 
 import java.io.IOException;
-import java.nio.file.Files; 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 public class FileNoteRepository {
 
@@ -21,93 +26,101 @@ public class FileNoteRepository {
         Files.createDirectories(notesDirectory);
     }
 
-    public void save(Note note) throws IOException { 
-        initializeNotesDirectory();                                     //makes sure folder exists 
+    public void save(Note note) throws IOException {
+        initializeNotesDirectory();
 
-        Path filePath = notesDirectory.resolve(note.getId() + ".note");        //creates file path example (/Users/collin/.notes/notes/1.note)
+        Path filePath = notesDirectory.resolve(note.getId() + ".note");
 
-        String content = 
-                "---\n" + 
-                "title: " + note.getTitle() + "\n" + 
-                "author: " + note.getAuthor() + "\n" +                          //manually build YAML header + content
-                "created: " + note.getCreated() + "\n" + 
-                "modified: " + note.getModified() + "\n" + 
-                "---\n\n" + 
-                note.getContent(); 
+        String tagsLine = "tags: [" + String.join(", ", note.getTags()) + "]";
 
-        Files.write(filePath, content.getBytes());                          //write file
+        String content =
+                "---\n" +
+                "title: " + note.getTitle() + "\n" +
+                "author: " + note.getAuthor() + "\n" +
+                "created: " + note.getCreated() + "\n" +
+                "modified: " + note.getModified() + "\n" +
+                tagsLine + "\n" +
+                "---\n\n" +
+                note.getContent();
+
+        Files.writeString(filePath, content, StandardCharsets.UTF_8);
     }
 
     public Note findById(String id) throws IOException {
         Path filePath = notesDirectory.resolve(id + ".note");
 
-        java.util.List<String> lines = Files.readAllLines(filePath);
+        List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
 
         String title = "";
-        String author = ""; 
-        String content = ""; 
+        String author = "";
+        LocalDateTime created = null;
+        LocalDateTime modified = null;
+        List<String> tags = new ArrayList<>();
+        StringBuilder contentBuilder = new StringBuilder();
 
         boolean inHeader = false;
-        boolean inContent = false; 
-        StringBuilder contentBuilder = new StringBuilder(); 
+        boolean inContent = false;
 
-        for (String line : lines) { 
-            if (line.equals("---")) { 
+        for (String line : lines) {
+            if (line.equals("---")) {
                 if (!inHeader) {
-                    inHeader = true;        // first --- starts header
+                    inHeader = true;
+                } else if (!inContent) {
+                    inContent = true;
                 }
-                else if (!inContent) {
-                    inContent = true;       // second --- starts content
-                }
-                    continue;
-                }
-            if (inHeader && !inContent) { 
+                continue;
+            }
+
+            if (inHeader && !inContent) {
                 if (line.startsWith("title: ")) {
-                    title = line.substring(7); 
+                    title = line.substring(7).trim();
                 } else if (line.startsWith("author: ")) {
-                    author = line.substring(8); 
+                    author = line.substring(8).trim();
+                } else if (line.startsWith("created: ")) {
+                    created = LocalDateTime.parse(line.substring(9).trim());
+                } else if (line.startsWith("modified: ")) {
+                    modified = LocalDateTime.parse(line.substring(10).trim());
+                } else if (line.startsWith("tags: [") && line.endsWith("]")) {
+                    String tagText = line.substring(7, line.length() - 1).trim();
+                    if (!tagText.isEmpty()) {
+                        String[] splitTags = tagText.split(",");
+                        for (String tag : splitTags) {
+                            tags.add(tag.trim());
+                        }
+                    }
                 }
             } else if (inContent) {
-                contentBuilder.append(line).append("\n"); 
+                contentBuilder.append(line).append("\n");
             }
         }
 
-        content = contentBuilder.toString().trim(); 
+        String content = contentBuilder.toString().trim();
 
-        return new Note(id, title, content, author, java.util.Arrays.asList());
+        return new Note(id, title, content, author, tags, created, modified);
     }
-    
-/* makes sure the notes folder exists
-looks inside the folder
-finds files ending in .note
-gets each note’s id from the filename
-reuses findById() to load each one
-returns all notes in a list */
 
-    public java.util.List<Note> findAll() throws IOException { 
-        initializeNotesDirectory(); 
+    public List<Note> findAll() throws IOException {
+        initializeNotesDirectory();
 
-        java.util.List<Note> notes = new java.util.ArrayList<>(); 
+        List<Note> notes = new ArrayList<>();
 
-        try (java.util.stream.Stream<Path> paths = Files.list(notesDirectory)) { 
-            java.util.List<Path> files = paths
-                .filter(path -> path.toString().endsWith(".note"))
-                .toList(); 
+        try (Stream<Path> paths = Files.list(notesDirectory)) {
+            List<Path> files = paths
+                    .filter(path -> path.toString().endsWith(".note"))
+                    .toList();
 
-            for (Path file : files) { 
-                String fileName = file.getFileName().toString(); 
-                String id = fileName.substring(0, fileName.length() - 5);   //removes ".note"
-                notes.add(findById(id)); 
+            for (Path file : files) {
+                String fileName = file.getFileName().toString();
+                String id = fileName.substring(0, fileName.length() - 5);
+                notes.add(findById(id));
             }
         }
 
-        return notes; 
+        return notes;
     }
 
-    public void deleteById(String id) throws IOException { 
-        Path filePath = notesDirectory.resolve(id + ".note");     // if file exists, delete it 
-
-        Files.deleteIfExists(filePath); 
+    public void deleteById(String id) throws IOException {
+        Path filePath = notesDirectory.resolve(id + ".note");
+        Files.deleteIfExists(filePath);
     }
-
 }
