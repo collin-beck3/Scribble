@@ -198,4 +198,34 @@ void editNote_shouldUpdateTags() throws IOException {
 
     assertEquals(List.of("java", "project"), updated.getTags());
 }
+
+@Test
+void listNotesByTag_shouldReturnMatchingNotes() throws IOException {
+    service.createNote("Java Note", "Streams practice", "Collin", List.of("java", "school"));
+    service.createNote("Shopping Note", "Milk and eggs", "Collin", List.of("personal"));
+
+    List<Note> results = service.listNotesByTag("java");
+
+    assertEquals(1, results.size());
+    assertEquals("Java Note", results.get(0).getTitle());
+}
+
+@Test
+void listNotesByTag_shouldBeCaseInsensitive() throws IOException {
+    service.createNote("Java Note", "Streams practice", "Collin", List.of("Java", "school"));
+
+    List<Note> results = service.listNotesByTag("java");
+
+    assertEquals(1, results.size());
+    assertEquals("Java Note", results.get(0).getTitle());
+}
+
+@Test
+void listNotesByTag_shouldReturnEmptyWhenNoTagMatches() throws IOException {
+    service.createNote("Java Note", "Streams practice", "Collin", List.of("java"));
+
+    List<Note> results = service.listNotesByTag("basketball");
+
+    assertTrue(results.isEmpty());
+}
 }

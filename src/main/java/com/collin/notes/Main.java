@@ -21,7 +21,12 @@ public class Main {
             if (command.equals("list")) {
                 List<Note> notes;
                 
-                if (args.length >= 3 && args[1].equals("--tag")) {
+                if (args.length >= 2 && args[1].equals("--tag")) {
+                    if (args.length < 3) {
+                        System.out.println("Usage: list --tag <tag>");
+                        return;
+                    }
+                    
                     String tag = args[2]; 
                     notes = service.listNotesByTag(tag);
                 } else {
@@ -169,6 +174,7 @@ public class Main {
     private static void printHelp() {
         System.out.println("Available commands:");
         System.out.println("  list");
+        System.out.println("  list --tag <tag>");
         System.out.println("  read <note-id>");
         System.out.println("  create <title> <content> <author>");
         System.out.println("  edit <note-id>");
