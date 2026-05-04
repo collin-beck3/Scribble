@@ -26,7 +26,7 @@ public class Main {
                         System.out.println("Usage: list --tag <tag>");
                         return;
                     }
-                    
+
                     String tag = args[2]; 
                     notes = service.listNotesByTag(tag);
                 } else {
@@ -143,6 +143,9 @@ public class Main {
                 Note updated = service.editNote(id, newTitle, newContent, newAuthor, newTags);
                 System.out.println("Updated note: " + updated.getId());
 
+            } else if (command.equals("stats")) {
+                service.printStats();
+
             } else {
                 System.out.println("Unknown command: " + command);
                 printHelp();
@@ -180,6 +183,7 @@ public class Main {
         System.out.println("  edit <note-id>");
         System.out.println("  delete <note-id>");
         System.out.println("  search <query>");
+        System.out.println("  stats");
     }
 }
 

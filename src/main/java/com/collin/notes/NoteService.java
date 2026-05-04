@@ -85,4 +85,38 @@ public class NoteService {
         repository.save(note);
         return note;
     }
+
+    public void printStats() throws IOException {
+    List<Note> notes = repository.findAll();
+
+    int totalNotes = notes.size();
+    int totalCharacters = 0;
+    java.util.Map<String, Integer> tagCounts = new java.util.HashMap<>();
+
+    for (Note note : notes) {
+        totalCharacters += note.getContent().length();
+
+        for (String tag : note.getTags()) {
+            String lowerTag = tag.toLowerCase();
+            tagCounts.put(lowerTag, tagCounts.getOrDefault(lowerTag, 0) + 1);
+        }
+    }
+
+    double averageLength = totalNotes == 0 ? 0 : (double) totalCharacters / totalNotes;
+
+    System.out.println("Notes Stats");
+    System.out.println("-----------");
+    System.out.println("Total notes: " + totalNotes);
+    System.out.println("Total characters: " + totalCharacters);
+    System.out.println("Average note length: " + averageLength);
+
+    if (tagCounts.isEmpty()) {
+        System.out.println("No tags found.");
+    } else {
+        System.out.println("Tags:");
+        for (String tag : tagCounts.keySet()) {
+            System.out.println("  " + tag + ": " + tagCounts.get(tag));
+        }
+    }
+}
 }

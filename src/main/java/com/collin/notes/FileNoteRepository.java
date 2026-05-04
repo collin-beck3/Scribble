@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -13,9 +12,11 @@ import java.util.stream.Stream;
 public class FileNoteRepository {
 
     private final Path notesDirectory;
+    private final NoteFileSerializer serializer;
 
     public FileNoteRepository() {
         this.notesDirectory = Paths.get(System.getProperty("user.home"), ".notes", "notes");
+        this.serializer = new NoteFileSerializer();
     }
 
     public Path getNotesDirectory() {
@@ -30,73 +31,17 @@ public class FileNoteRepository {
         initializeNotesDirectory();
 
         Path filePath = notesDirectory.resolve(note.getId() + ".note");
+        String fileText = serializer.serialize(note);
 
-        String tagsLine = "tags: [" + String.join(", ", note.getTags()) + "]";
-
-        String content =
-                "---\n" +
-                "title: " + note.getTitle() + "\n" +
-                "author: " + note.getAuthor() + "\n" +
-                "created: " + note.getCreated() + "\n" +
-                "modified: " + note.getModified() + "\n" +
-                tagsLine + "\n" +
-                "---\n\n" +
-                note.getContent();
-
-        Files.writeString(filePath, content, StandardCharsets.UTF_8);
+        Files.writeString(filePath, fileText, StandardCharsets.UTF_8);
     }
 
     public Note findById(String id) throws IOException {
         Path filePath = notesDirectory.resolve(id + ".note");
 
-        List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
+        String fileText = Files.readString(filePath, StandardCharsets.UTF_8);
 
-        String title = "";
-        String author = "";
-        LocalDateTime created = null;
-        LocalDateTime modified = null;
-        List<String> tags = new ArrayList<>();
-        StringBuilder contentBuilder = new StringBuilder();
-
-        boolean inHeader = false;
-        boolean inContent = false;
-
-        for (String line : lines) {
-            if (line.equals("---")) {
-                if (!inHeader) {
-                    inHeader = true;
-                } else if (!inContent) {
-                    inContent = true;
-                }
-                continue;
-            }
-
-            if (inHeader && !inContent) {
-                if (line.startsWith("title: ")) {
-                    title = line.substring(7).trim();
-                } else if (line.startsWith("author: ")) {
-                    author = line.substring(8).trim();
-                } else if (line.startsWith("created: ")) {
-                    created = LocalDateTime.parse(line.substring(9).trim());
-                } else if (line.startsWith("modified: ")) {
-                    modified = LocalDateTime.parse(line.substring(10).trim());
-                } else if (line.startsWith("tags: [") && line.endsWith("]")) {
-                    String tagText = line.substring(7, line.length() - 1).trim();
-                    if (!tagText.isEmpty()) {
-                        String[] splitTags = tagText.split(",");
-                        for (String tag : splitTags) {
-                            tags.add(tag.trim());
-                        }
-                    }
-                }
-            } else if (inContent) {
-                contentBuilder.append(line).append("\n");
-            }
-        }
-
-        String content = contentBuilder.toString().trim();
-
-        return new Note(id, title, content, author, tags, created, modified);
+        return serializer.deserialize(id, fileText);
     }
 
     public List<Note> findAll() throws IOException {
